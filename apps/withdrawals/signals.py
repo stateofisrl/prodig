@@ -37,9 +37,13 @@ def send_withdrawal_email(sender, instance, created, **kwargs):
         # New withdrawal - notify admin
         try:
             from apps.users.emails import send_admin_withdrawal_notification
+            print(f"[SIGNAL] Sending admin notification for new withdrawal #{instance.pk} - ${instance.amount}")
             send_admin_withdrawal_notification(instance)
+            print(f"[SIGNAL] Admin email sent successfully for withdrawal #{instance.pk}")
         except Exception as e:
-            print(f"Failed to send admin withdrawal email: {e}")
+            print(f"[ERROR] Failed to send admin withdrawal email: {e}")
+            import traceback
+            traceback.print_exc()
     elif not created and instance.status in ['completed', 'rejected', 'processing']:
         # Status changed - notify user
         try:

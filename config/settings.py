@@ -169,9 +169,11 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'hr@nexacoredigital.xyz')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'ucmxhlgxfvtmnecm')
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'hr@nexacoredigital.xyz')
-ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'hr@nexacoredigital.xyz')
+EMAIL_USE_SSL = False
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'forexbtte@gmail.com')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'rwakwntyhsprnmja')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'forexbtte@gmail.com')
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'forexbtte@gmail.com')
+EMAIL_TIMEOUT = 30
 
 

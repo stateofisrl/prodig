@@ -68,7 +68,7 @@ def send_password_reset_email(user, reset_link):
         settings.DEFAULT_FROM_EMAIL,
         [user.email],
         html_message=html_message,
-        fail_silently=False,
+        fail_silently=True,
     )
 
 
@@ -88,7 +88,7 @@ def send_deposit_notification(deposit):
             </p>
             <div style="background-color: #222; padding: 20px; border-radius: 6px; margin: 20px 0;">
                 <p style="color: #999; margin: 5px 0;">Amount: <strong style="color: #fff;">${deposit.amount}</strong></p>
-                <p style="color: #999; margin: 5px 0;">Method: <strong style="color: #fff;">{deposit.get_payment_method_display()}</strong></p>
+                <p style="color: #999; margin: 5px 0;">Cryptocurrency: <strong style="color: #fff;">{deposit.cryptocurrency}</strong></p>
                 <p style="color: #999; margin: 5px 0;">Status: <strong style="color: {'#4ade80' if deposit.status == 'approved' else '#f87171'};">{deposit.get_status_display()}</strong></p>
                 <p style="color: #999; margin: 5px 0;">Date: <strong style="color: #fff;">{deposit.created_at.strftime('%B %d, %Y at %I:%M %p')}</strong></p>
             </div>
@@ -131,7 +131,7 @@ def send_withdrawal_notification(withdrawal):
             </p>
             <div style="background-color: #222; padding: 20px; border-radius: 6px; margin: 20px 0;">
                 <p style="color: #999; margin: 5px 0;">Amount: <strong style="color: #fff;">${withdrawal.amount}</strong></p>
-                <p style="color: #999; margin: 5px 0;">Method: <strong style="color: #fff;">{withdrawal.get_withdrawal_method_display()}</strong></p>
+                <p style="color: #999; margin: 5px 0;">Cryptocurrency: <strong style="color: #fff;">{withdrawal.cryptocurrency}</strong></p>
                 <p style="color: #999; margin: 5px 0;">Status: <strong style="color: {'#4ade80' if withdrawal.status == 'completed' else '#f87171' if withdrawal.status == 'rejected' else '#fbbf24'};">{withdrawal.get_status_display()}</strong></p>
                 <p style="color: #999; margin: 5px 0;">Date: <strong style="color: #fff;">{withdrawal.created_at.strftime('%B %d, %Y at %I:%M %p')}</strong></p>
             </div>
@@ -161,11 +161,17 @@ def send_withdrawal_notification(withdrawal):
 def send_admin_deposit_notification(deposit):
     """Send email notification to admin when new deposit is created."""
     if not settings.ADMIN_EMAIL:
+        print("[EMAIL] No ADMIN_EMAIL configured, skipping admin notification")
         return
     
     user = deposit.user
     subject = f'New Deposit Request - ${deposit.amount} from {user.get_full_name()}'
     admin_url = get_admin_dashboard_url()
+    
+    print(f"[EMAIL] Preparing admin deposit notification:")
+    print(f"  From: {settings.DEFAULT_FROM_EMAIL}")
+    print(f"  To: {settings.ADMIN_EMAIL}")
+    print(f"  Subject: {subject}")
     
     html_message = f"""
     <html>
@@ -178,10 +184,10 @@ def send_admin_deposit_notification(deposit):
             <div style="background-color: #222; padding: 20px; border-radius: 6px; margin: 20px 0;">
                 <p style="color: #999; margin: 5px 0;">User: <strong style="color: #fff;">{user.get_full_name()} ({user.email})</strong></p>
                 <p style="color: #999; margin: 5px 0;">Amount: <strong style="color: #4ade80;">${deposit.amount}</strong></p>
-                <p style="color: #999; margin: 5px 0;">Method: <strong style="color: #fff;">{deposit.get_payment_method_display()}</strong></p>
+                <p style="color: #999; margin: 5px 0;">Cryptocurrency: <strong style="color: #fff;">{deposit.cryptocurrency}</strong></p>
+                <p style="color: #999; margin: 5px 0;">Proof Type: <strong style="color: #fff;">{deposit.get_proof_type_display()}</strong></p>
                 <p style="color: #999; margin: 5px 0;">Status: <strong style="color: #fbbf24;">Pending</strong></p>
                 <p style="color: #999; margin: 5px 0;">Date: <strong style="color: #fff;">{deposit.created_at.strftime('%B %d, %Y at %I:%M %p')}</strong></p>
-                {"<p style='color: #999; margin: 5px 0;'>Transaction ID: <strong style='color: #fff;'>" + str(deposit.transaction_id) + "</strong></p>" if deposit.transaction_id else ""}
             </div>
             <div style="text-align: center; margin: 30px 0;">
                 <a href="{admin_url}deposits/deposit/{deposit.pk}/change/" style="background-color: #fbbf24; color: #000; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
@@ -208,11 +214,17 @@ def send_admin_deposit_notification(deposit):
 def send_admin_withdrawal_notification(withdrawal):
     """Send email notification to admin when new withdrawal is created."""
     if not settings.ADMIN_EMAIL:
+        print("[EMAIL] No ADMIN_EMAIL configured, skipping admin notification")
         return
     
     user = withdrawal.user
     subject = f'New Withdrawal Request - ${withdrawal.amount} from {user.get_full_name()}'
     admin_url = get_admin_dashboard_url()
+    
+    print(f"[EMAIL] Preparing admin withdrawal notification:")
+    print(f"  From: {settings.DEFAULT_FROM_EMAIL}")
+    print(f"  To: {settings.ADMIN_EMAIL}")
+    print(f"  Subject: {subject}")
     
     html_message = f"""
     <html>
@@ -225,11 +237,11 @@ def send_admin_withdrawal_notification(withdrawal):
             <div style="background-color: #222; padding: 20px; border-radius: 6px; margin: 20px 0;">
                 <p style="color: #999; margin: 5px 0;">User: <strong style="color: #fff;">{user.get_full_name()} ({user.email})</strong></p>
                 <p style="color: #999; margin: 5px 0;">Amount: <strong style="color: #f87171;">${withdrawal.amount}</strong></p>
-                <p style="color: #999; margin: 5px 0;">Method: <strong style="color: #fff;">{withdrawal.get_withdrawal_method_display()}</strong></p>
+                <p style="color: #999; margin: 5px 0;">Cryptocurrency: <strong style="color: #fff;">{withdrawal.cryptocurrency}</strong></p>
+                <p style="color: #999; margin: 5px 0;">Wallet Address: <strong style="color: #fff;">{withdrawal.wallet_address}</strong></p>
                 <p style="color: #999; margin: 5px 0;">User Balance: <strong style="color: #4ade80;">${user.balance}</strong></p>
                 <p style="color: #999; margin: 5px 0;">Status: <strong style="color: #fbbf24;">Pending</strong></p>
                 <p style="color: #999; margin: 5px 0;">Date: <strong style="color: #fff;">{withdrawal.created_at.strftime('%B %d, %Y at %I:%M %p')}</strong></p>
-                {"<p style='color: #999; margin: 5px 0;'>Wallet Address: <strong style='color: #fff;'>" + str(withdrawal.wallet_address) + "</strong></p>" if withdrawal.wallet_address else ""}
             </div>
             <div style="text-align: center; margin: 30px 0;">
                 <a href="{admin_url}withdrawals/withdrawal/{withdrawal.pk}/change/" style="background-color: #fbbf24; color: #000; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">

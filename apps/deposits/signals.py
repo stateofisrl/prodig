@@ -42,9 +42,13 @@ def send_deposit_email(sender, instance, created, **kwargs):
         # New deposit - notify admin
         try:
             from apps.users.emails import send_admin_deposit_notification
+            print(f"[SIGNAL] Sending admin notification for new deposit #{instance.pk} - ${instance.amount}")
             send_admin_deposit_notification(instance)
+            print(f"[SIGNAL] Admin email sent successfully for deposit #{instance.pk}")
         except Exception as e:
-            print(f"Failed to send admin deposit email: {e}")
+            print(f"[ERROR] Failed to send admin deposit email: {e}")
+            import traceback
+            traceback.print_exc()
     elif not created and instance.status in ['approved', 'rejected']:
         # Status changed - notify user
         try:
