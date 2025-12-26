@@ -32,6 +32,22 @@ services:
         value: True
       - key: SECURE_HSTS_PRELOAD
         value: True
+      - key: EMAIL_BACKEND
+        value: "django.core.mail.backends.smtp.EmailBackend"
+      - key: EMAIL_HOST
+        value: "smtp.gmail.com"
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USE_TLS
+        value: "True"
+      - key: EMAIL_HOST_USER
+        value: "forexbtte@gmail.com"
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        value: "forexbtte@gmail.com"
+      - key: ADMIN_EMAIL
+        value: "forexbtte@gmail.com"
 
 databases:
   - name: tesla-investment-db
