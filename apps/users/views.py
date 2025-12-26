@@ -1,0 +1,293 @@
+"""
+User views and API endpoints.
+"""
+
+from rest_framework import viewsets, status
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth import login as django_login
+from django.contrib.auth import logout as django_logout
+from django.shortcuts import render, redirect
+from django.http import HttpResponseNotFound
+from django.conf import settings
+from django.views.decorators.csrf import ensure_csrf_cookie
+from rest_framework.authtoken.models import Token
+from .serializers import (
+    UserRegistrationSerializer, UserProfileSerializer, 
+    UserUpdateSerializer, UserLoginSerializer
+)
+
+User = get_user_model()
+
+
+class UserViewSet(viewsets.ModelViewSet):
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    queryset = User.objects.all()
+    serializer_class = UserProfileSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_serializer_class(self):
+        if self.action == 'register':
+            return UserRegistrationSerializer
+        elif self.action in ['login', 'token_login']:
+            return UserLoginSerializer
+        elif self.action == 'update_profile':
+            return UserUpdateSerializer
+        return UserProfileSerializer
+    
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    def register(self, request):
+        """Register a new user."""
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            token, created = Token.objects.get_or_create(user=user)
+            return Response({
+                'message': 'Registration successful',
+                'user': UserProfileSerializer(user).data,
+                'token': token.key
+            }, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    def login(self, request):
+        """Login user."""
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+            password = serializer.validated_data['password']
+            
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                return Response(
+                    {'detail': 'Invalid credentials'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            
+            # Authenticate using email (USERNAME_FIELD) instead of username
+            user = authenticate(username=email, password=password)
+            if user:
+                # Create token and also log the user into the session so
+                # API clients using session authentication will be able to
+                # make subsequent authenticated requests without the token.
+                token, created = Token.objects.get_or_create(user=user)
+                # Do not create a Django session here; return token only so
+                # frontend can authenticate via TokenAuth without affecting
+                # the site's session cookie (prevents swapping admin session).
+                return Response({
+                    'message': 'Login successful',
+                    'user': UserProfileSerializer(user).data,
+                    'token': token.key
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response(
+                    {'detail': 'Invalid credentials'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    def token_login(self, request):
+        """Login and return token only (do not create a Django session).
+
+        Use this from the frontend when you want to authenticate API calls
+        via TokenAuth without touching the session cookie (prevents swapping
+        the admin session when testing in the same browser).
+        """
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+            password = serializer.validated_data['password']
+
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                return Response({'detail': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+            # Authenticate using email (USERNAME_FIELD) instead of username
+            user = authenticate(username=email, password=password)
+            if user:
+                token, created = Token.objects.get_or_create(user=user)
+                return Response({
+                    'message': 'Login successful',
+                    'user': UserProfileSerializer(user).data,
+                    'token': token.key
+                }, status=status.HTTP_200_OK)
+            return Response({'detail': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def logout(self, request):
+        """Logout user."""
+        try:
+            request.user.auth_token.delete()
+        except AttributeError:
+            pass
+        return Response({'message': 'Logout successful'}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['put'], permission_classes=[IsAuthenticated])
+    def update_profile(self, request):
+        """Update current user's profile (frontend settings page)."""
+        serializer = UserUpdateSerializer(request.user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                'message': 'Profile updated successfully',
+                'user': UserProfileSerializer(request.user).data
+            }, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['get', 'put'], permission_classes=[IsAuthenticated])
+    def me(self, request):
+        """Get or update current user profile."""
+        if request.method == 'GET':
+            serializer = UserProfileSerializer(request.user)
+            return Response(serializer.data)
+        
+        elif request.method == 'PUT':
+            serializer = UserUpdateSerializer(request.user, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({
+                    'message': 'Profile updated successfully',
+                    'user': UserProfileSerializer(request.user).data
+                }, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def dashboard(self, request):
+        """Get user dashboard data."""
+        user = request.user
+        return Response({
+            'user': UserProfileSerializer(user).data,
+            'balance': str(user.balance),
+            'total_invested': str(user.total_invested),
+            'total_earnings': str(user.total_earnings),
+        }, status=status.HTTP_200_OK)
+
+
+@ensure_csrf_cookie
+def dashboard_view(request):
+    """Render dashboard template with real data from database."""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    
+    user = request.user
+    from apps.investments.models import UserInvestment
+    from apps.deposits.models import Deposit
+    
+    # Get user data
+    active_investments = UserInvestment.objects.filter(user=user, status='active')
+    recent_deposits = Deposit.objects.filter(user=user).order_by('-created_at')[:3]
+    
+    return render(request, 'dashboard.html', {
+        'balance': user.balance,
+        'total_invested': user.total_invested,
+        'total_earnings': user.total_earnings,
+        'active_investments': active_investments,
+        'recent_deposits': recent_deposits,
+    })
+
+
+@ensure_csrf_cookie
+def login_page(request):
+    """Render login page and handle form POST (for template-based login)."""
+    if request.method == 'GET':
+        if request.user.is_authenticated:
+            return redirect('dashboard')
+        return render(request, 'login.html')
+
+    # POST: process form
+    email = request.POST.get('email')
+    password = request.POST.get('password')
+    if not email or not password:
+        return render(request, 'login.html', {'error': 'Please provide email and password.'})
+
+    user = authenticate(request, username=email, password=password)
+    if user is not None:
+        django_login(request, user)
+        return redirect('dashboard')
+
+    return render(request, 'login.html', {'error': 'Invalid credentials.'})
+
+
+@ensure_csrf_cookie
+def register_page(request):
+    """Render register page and handle form POST (for template-based registration)."""
+    if request.method == 'GET':
+        if request.user.is_authenticated:
+            return redirect('dashboard')
+        return render(request, 'register.html')
+
+    # POST: process form
+    email = request.POST.get('email')
+    username = request.POST.get('username')
+    first_name = request.POST.get('first_name')
+    last_name = request.POST.get('last_name')
+    password = request.POST.get('password')
+    password2 = request.POST.get('password2')
+
+    if not all([email, username, first_name, last_name, password, password2]):
+        return render(request, 'register.html', {'error': 'All fields are required.'})
+
+    if password != password2:
+        return render(request, 'register.html', {'error': 'Passwords do not match.'})
+
+    if len(password) < 8:
+        return render(request, 'register.html', {'error': 'Password must be at least 8 characters.'})
+
+    if User.objects.filter(email=email).exists():
+        return render(request, 'register.html', {'error': 'Email already registered.'})
+
+    if User.objects.filter(username=username).exists():
+        return render(request, 'register.html', {'error': 'Username already taken.'})
+
+    try:
+        user = User.objects.create_user(
+            email=email,
+            username=email,  # Use email as username for authentication
+            first_name=first_name,
+            last_name=last_name,
+            password=password
+        )
+        django_login(request, user)
+        return redirect('dashboard')
+    except Exception as e:
+        return render(request, 'register.html', {'error': f'Registration failed: {str(e)}'})
+
+
+def logout_view(request):
+    """Log out the current session and redirect to login page."""
+    try:
+        # Best-effort: remove DRF token if present for this user
+        if request.user.is_authenticated:
+            try:
+                request.user.auth_token.delete()
+            except Exception:
+                pass
+    finally:
+        django_logout(request)
+    return redirect('login')
+
+
+def dev_login_as(request):
+    """Development helper: instantly log in as a user by email.
+
+    Only available when DEBUG=True. Useful to verify SSR pages quickly.
+    Example: /dev/login-as/?email=user@example.com
+    """
+    if not settings.DEBUG:
+        return HttpResponseNotFound('Not available in production')
+    email = request.GET.get('email', 'user@example.com')
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        return redirect('login')
+    # Log in with explicit backend to create session in dev helper
+    django_login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+    return redirect('dashboard')

@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+
+{% block title %}Profile Settings - Tesla Investment Platform{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-8 md:px-0">
+    <div class="bg-gray-900 rounded-lg shadow-2xl p-6 md:p-8 border border-gray-800">
+        <h1 class="text-3xl md:text-4xl font-bold text-white mb-6">Account Settings</h1>
+        <form id="profile-form" class="space-y-6">
+            {% csrf_token %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">First Name</label>
+                    <input class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-white focus:border-transparent transition" id="first_name" name="first_name" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Last Name</label>
+                    <input class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-white focus:border-transparent transition" id="last_name" name="last_name" />
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Email Address</label>
+                <input class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-white focus:border-transparent transition" id="email" name="email" type="email" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Country</label>
+                <input class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-white focus:border-transparent transition" id="country" name="country" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Profile Image</label>
+                <input type="file" class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-gray-400 focus:ring-2 focus:ring-white focus:border-transparent transition" id="profile_image" name="profile_image" accept="image/*" />
+            </div>
+
+            <div id="message" class="hidden px-4 py-3 rounded-lg"></div>
+
+            <button class="w-full bg-white hover:bg-gray-200 text-black font-bold py-3 px-4 rounded-lg transition" type="submit">
+                Save Settings
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', async function(){
+    // Load user data on page load
+    try {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const response = await fetch('/api/users/me/', {
+            headers: {
+                'X-CSRFToken': csrfToken,
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to load profile data');
+        }
+        
+        const user = await response.json();
+        document.getElementById('first_name').value = user.first_name || '';
+        document.getElementById('last_name').value = user.last_name || '';
+        document.getElementById('email').value = user.email || '';
+        document.getElementById('country').value = user.country || '';
+    } catch (err) {
+        console.error('Error loading profile:', err);
+        showMessage('Error loading profile data', 'error');
+    }
+
+    // Handle form submission
+    document.getElementById('profile-form').addEventListener('submit', async function(e){
+        e.preventDefault();
+        
+        const formData = new FormData();
+        formData.append('first_name', document.getElementById('first_name').value);
+        formData.append('last_name', document.getElementById('last_name').value);
+        formData.append('email', document.getElementById('email').value);
+        formData.append('country', document.getElementById('country').value);
+        
+        const profileImage = document.getElementById('profile_image').files[0];
+        if (profileImage) {
+            formData.append('profile_image', profileImage);
+        }
+        
+        try {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const response = await fetch('/api/users/update_profile/', {
+                method: 'PUT',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                },
+                body: formData,
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                showMessage('Profile updated successfully!', 'success');
+            } else {
+                const error = await response.json();
+                console.error('API Error:', error);
+                showMessage('Error updating profile: ' + JSON.stringify(error), 'error');
+            }
+        } catch (err) {
+            console.error('Error updating profile:', err);
+            showMessage('Error updating profile', 'error');
+        }
+    });
+
+    function showMessage(message, type) {
+        const messageEl = document.getElementById('message');
+        messageEl.textContent = message;
+        messageEl.className = 'px-4 py-3 rounded-lg ' + (type === 'success' ? 'bg-green-900 border border-green-800 text-green-200' : 'bg-red-900 border border-red-800 text-red-200');
+    }
+});
+</script>
+{% endblock %}

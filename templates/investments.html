@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+
+{% block title %}Investments - Tesla Investment Platform{% endblock %}
+
+{% block content %}
+<div class="space-y-8 px-4 md:px-0">
+    <h1 class="text-4xl md:text-5xl font-bold text-white">Investment Plans</h1>
+
+    {% if success %}
+    <div class="bg-green-900 border border-green-800 text-green-200 px-4 py-3 rounded">
+        ✅ {{ success }}
+    </div>
+    {% endif %}
+    
+    {% if error %}
+    <div class="bg-red-900 border border-red-800 text-red-200 px-4 py-3 rounded">
+        ❌ {{ error }}
+    </div>
+    {% endif %}
+
+    <!-- Investment Plans Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="plans-grid">
+        {% if plans %}
+            {% for plan in plans %}
+            <div class="bg-gray-900 rounded-lg shadow-2xl p-6 border-t-4 border-white h-full flex flex-col">
+                <h3 class="text-xl font-bold text-white mb-2">{{ plan.name }}</h3>
+                <p class="text-gray-400 text-sm mb-4 flex-grow">{{ plan.description }}</p>
+                <div class="border-t border-gray-800 pt-4 space-y-2 mb-4">
+                    <p class="text-sm text-gray-300"><strong>ROI:</strong> <span class="bg-green-900 text-green-400 px-2 py-1 rounded text-xs">{{ plan.roi_percentage }}%</span></p>
+                    <p class="text-sm text-gray-300"><strong>Duration:</strong> {{ plan.duration_days }} days</p>
+                    <p class="text-sm text-gray-300"><strong>Min. Investment:</strong> ${{ plan.minimum_investment|floatformat:2 }}</p>
+                    {% if plan.maximum_investment %}<p class="text-sm text-gray-300"><strong>Max. Investment:</strong> ${{ plan.maximum_investment|floatformat:2 }}</p>{% endif %}
+                </div>
+                <form method="post" action="/investments/" class="space-y-3">
+                    {% csrf_token %}
+                    <input type="hidden" name="plan" value="{{ plan.id }}">
+                    <input type="number" name="amount" placeholder="Amount" step="0.01" min="{{ plan.minimum_investment }}" class="w-full px-4 py-2 bg-gray-800 border border-gray-700 text-white rounded-lg focus:ring-2 focus:ring-white placeholder-gray-500 transition" required>
+                    {% if balance >= plan.minimum_investment %}
+                        <button type="submit" class="w-full bg-white hover:bg-gray-200 text-black font-bold py-2 px-4 rounded-lg transition">
+                            Invest Now
+                        </button>
+                    {% else %}
+                        <button type="button" class="w-full bg-gray-700 text-gray-400 font-bold py-2 px-4 rounded-lg cursor-not-allowed" disabled>
+                            Insufficient Balance
+                        </button>
+                    {% endif %}
+                </form>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-span-full text-center py-12"><p class="text-gray-400">No investment plans available</p></div>
+        {% endif %}
+    </div>
+
+    <!-- Active Investments -->
+    <div>
+        <h2 class="text-2xl font-bold text-white mb-4">Your Active Investments</h2>
+        <div class="bg-gray-900 rounded-lg shadow-2xl p-6 overflow-x-auto border border-gray-800">
+            <table class="w-full text-sm">
+                <thead class="border-b border-gray-700">
+                    <tr class="text-gray-300">
+                        <th class="text-left py-2">Plan</th>
+                        <th class="text-right py-2">Amount</th>
+                        <th class="text-center py-2">ROI</th>
+                        <th class="text-left py-2">Start</th>
+                        <th class="text-left py-2">End</th>
+                        <th class="text-right py-2">Expected</th>
+                        <th class="text-center py-2">Status</th>
+                        <th class="text-center py-2">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="investments-table" class="divide-y divide-gray-700">
+                    {% if user_investments %}
+                        {% for inv in user_investments %}
+                        <tr class="hover:bg-gray-800 transition">
+                            <td class="py-2 text-gray-400">{{ inv.plan.name }}</td>
+                            <td class="py-2 text-right text-gray-400">${{ inv.amount|floatformat:2 }}</td>
+                            <td class="py-2 text-center text-gray-400">{{ inv.plan.roi_percentage }}%</td>
+                            <td class="py-2 text-gray-400">{{ inv.start_date|date:"M d, Y" }}</td>
+                            <td class="py-2 text-gray-400">{{ inv.end_date|date:"M d, Y" }}</td>
+                            <td class="py-2 text-right font-bold text-white">${{ inv.expected_return|floatformat:2 }}</td>
+                            <td class="py-2 text-center">
+                                <span class="text-xs font-bold px-2 py-1 rounded-full {% if inv.status == 'active' %}bg-green-900 text-green-400{% elif inv.status == 'cancelled' %}bg-red-900 text-red-400{% elif inv.status == 'completed' %}bg-blue-900 text-blue-400{% else %}bg-gray-700 text-gray-300{% endif %}">
+                                    {{ inv.get_status_display }}
+                                </span>
+                            </td>
+                            <td class="py-2 text-center">
+                                {% if inv.status == 'active' %}
+                                <form method="post" action="/investments/" onsubmit="return confirm('Are you sure you want to cancel this investment? The amount will be refunded to your balance.');" class="inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="cancel_investment" value="1">
+                                    <input type="hidden" name="investment_id" value="{{ inv.id }}">
+                                    <button type="submit" class="bg-red-900 hover:bg-red-800 text-red-400 hover:text-red-300 text-xs font-bold px-3 py-1 rounded transition">
+                                        Cancel
+                                    </button>
+                                </form>
+                                {% else %}
+                                <span class="text-gray-600 text-xs">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr><td colspan="8" class="py-4 text-center text-gray-400">No investments yet</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

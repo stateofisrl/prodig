@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block title %}Debug - Investment Platform{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-warning">
+                    <h5>Debug Information</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Token in localStorage:</strong> <span id="token-status">Checking...</span></p>
+                    <p><strong>API /api/users/me/ Status:</strong> <span id="api-status">Checking...</span></p>
+                    <p><strong>User Balance:</strong> <span id="user-balance">Checking...</span></p>
+                    <p><strong>User Email:</strong> <span id="user-email">Checking...</span></p>
+                    
+                    <hr>
+                    
+                    <h6>Console Output:</h6>
+                    <pre id="console-output" style="background: #f5f5f5; padding: 10px; height: 300px; overflow-y: auto; border-radius: 5px;"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function log(msg) {
+        const output = document.getElementById('console-output');
+        output.innerHTML += (new Date().toLocaleTimeString()) + ' > ' + msg + '\n';
+        output.scrollTop = output.scrollHeight;
+    }
+    
+    document.addEventListener('DOMContentLoaded', function () {
+        log('Page loaded');
+        
+        // Check token
+        const token = localStorage.getItem('token');
+        const tokenEl = document.getElementById('token-status');
+        if (token) {
+            tokenEl.innerHTML = '✓ Token found: ' + token.substring(0, 20) + '...';
+            tokenEl.style.color = 'green';
+            log('Token found in localStorage');
+        } else {
+            tokenEl.innerHTML = '✗ No token in localStorage';
+            tokenEl.style.color = 'red';
+            log('No token found in localStorage');
+            return;
+        }
+        
+        // Test API call
+        log('Testing /api/users/me/...');
+        fetch('/api/users/me/', {
+            headers: {
+                'Authorization': `Token ${token}`
+            }
+        })
+        .then(r => {
+            log(`Response status: ${r.status}`);
+            return r.json();
+        })
+        .then(data => {
+            log('API response received');
+            document.getElementById('api-status').innerHTML = '✓ Success';
+            document.getElementById('api-status').style.color = 'green';
+            document.getElementById('user-balance').innerHTML = '$' + data.balance;
+            document.getElementById('user-email').innerHTML = data.email;
+            log('Balance: $' + data.balance);
+            log('Email: ' + data.email);
+        })
+        .catch(err => {
+            log('API Error: ' + err);
+            document.getElementById('api-status').innerHTML = '✗ Error: ' + err;
+            document.getElementById('api-status').style.color = 'red';
+        });
+    });
+</script>
+{% endblock %}

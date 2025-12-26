@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Tesla Investment Platform{% endblock %}
+
+{% block content %}
+<div class="space-y-8 px-4 md:px-0">
+    <div>
+        <h1 class="text-4xl md:text-5xl font-bold text-white">Dashboard</h1>
+        <p class="text-gray-400 mt-2">Welcome back, {{ user.first_name }}!</p>
+    </div>
+
+    <!-- Balance Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-gradient-to-br from-white to-gray-200 rounded-lg shadow-2xl p-6 text-black">
+            <h3 class="text-lg font-semibold mb-2 text-gray-700">Current Balance</h3>
+            <p class="text-4xl font-bold" data-balance>${{ balance|floatformat:2 }}</p>
+            <p class="text-sm text-gray-600 mt-2">Available to trade</p>
+        </div>
+        <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg shadow-2xl p-6 border border-gray-700 text-white">
+            <h3 class="text-lg font-semibold mb-2 text-gray-300">Total Invested</h3>
+            <p class="text-4xl font-bold" data-invested>${{ total_invested|floatformat:2 }}</p>
+            <p class="text-sm text-gray-400 mt-2">Across all plans</p>
+        </div>
+        <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg shadow-2xl p-6 border border-gray-700 text-white">
+            <h3 class="text-lg font-semibold mb-2 text-gray-300">Total Earnings</h3>
+            <p class="text-4xl font-bold" data-earnings>${{ total_earnings|floatformat:2 }}</p>
+            <p class="text-sm text-gray-400 mt-2">Cumulative returns</p>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div>
+        <h2 class="text-2xl font-bold text-white mb-4">Quick Actions</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <a href="/deposits/" class="bg-white hover:bg-gray-200 text-black font-bold py-3 px-4 rounded-lg text-center transition">
+                Deposit Funds
+            </a>
+            <a href="/investments/" class="bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center transition border border-gray-700">
+                View Investments
+            </a>
+            <a href="/withdrawals/" class="bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center transition border border-gray-700">
+                Request Withdrawal
+            </a>
+            <a href="/support/" class="bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center transition border border-gray-700">
+                Support
+            </a>
+        </div>
+    </div>
+
+    <!-- Recent Investments & Deposits -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-gray-900 rounded-lg shadow-2xl p-6 border border-gray-800">
+            <h2 class="text-2xl font-bold text-white mb-4">Active Investments</h2>
+            <div id="investments-list">
+                {% if active_investments %}
+                    <div class="space-y-3">
+                    {% for inv in active_investments %}
+                        <div class="border border-gray-800 rounded-lg p-4 bg-gray-800 hover:bg-gray-700 transition">
+                            <div class="flex justify-between items-start mb-2">
+                                <h4 class="font-bold text-white">{{ inv.plan.name }}</h4>
+                                <span class="text-sm text-gray-400">{{ inv.start_date|date:"M d, Y" }}</span>
+                            </div>
+                            <p class="text-gray-300"><strong>Amount:</strong> ${{ inv.amount|floatformat:2 }}</p>
+                            <p class="text-gray-300"><strong>ROI:</strong> {{ inv.plan.roi_percentage }}%</p>
+                            <p class="text-sm text-green-400"><strong>Expected Return:</strong> ${{ inv.expected_return|floatformat:2 }}</p>
+                        </div>
+                    {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-gray-400">No active investments yet</p>
+                {% endif %}
+            </div>
+        </div>
+        <div class="bg-gray-900 rounded-lg shadow-2xl p-6 border border-gray-800">
+            <h2 class="text-2xl font-bold text-white mb-4">Recent Deposits</h2>
+            <div id="deposits-list">
+                {% if recent_deposits %}
+                    <div class="space-y-3">
+                    {% for deposit in recent_deposits %}
+                        <div class="border border-gray-800 rounded-lg p-4 bg-gray-800 hover:bg-gray-700 transition">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <h4 class="font-bold text-white">{{ deposit.cryptocurrency }}</h4>
+                                    <span class="text-sm text-gray-400">{{ deposit.created_at|date:"M d, Y" }}</span>
+                                    {% if deposit.wallet_address %}
+                                    <div class="mt-2"><code class="text-xs bg-gray-700 p-1 block break-all text-gray-300 rounded">{{ deposit.wallet_address }}</code></div>
+                                    {% endif %}
+                                </div>
+                                <span class="text-xs font-bold px-2 py-1 rounded-full {% if deposit.status == 'confirmed' %}bg-green-900 text-green-400{% elif deposit.status == 'pending' %}bg-yellow-900 text-yellow-400{% else %}bg-gray-700 text-gray-300{% endif %}">
+                                    {{ deposit.get_status_display }}
+                                </span>
+                            </div>
+                            <p class="text-lg font-bold text-white">{{ deposit.amount|floatformat:8 }} {{ deposit.cryptocurrency }}</p>
+                        </div>
+                    {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-gray-400">No deposits yet</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/dashboard.js"></script>
+{% endblock %}

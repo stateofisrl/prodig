@@ -1,0 +1,303 @@
+{% extends 'base.html' %}
+
+{% block title %}Support - Tesla Investment Platform{% endblock %}
+
+{% block content %}
+<div class="space-y-8 px-4 md:px-0">
+    <h1 class="text-4xl md:text-5xl font-bold text-white">Support Tickets</h1>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Create Ticket Form -->
+        <div class="bg-gray-900 rounded-lg shadow-2xl p-6 border border-gray-800">
+            <h2 class="text-2xl font-bold text-white mb-6">Create Ticket</h2>
+            <form id="ticket-form" class="space-y-4">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Subject</label>
+                    <input type="text" id="subject" required class="w-full px-4 py-3 bg-gray-800 border border-gray-700 text-white rounded-lg focus:ring-2 focus:ring-white placeholder-gray-500 transition">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Priority</label>
+                    <select id="priority" class="w-full px-4 py-3 bg-gray-800 border border-gray-700 text-white rounded-lg focus:ring-2 focus:ring-white transition">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                        <option value="urgent">Urgent</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Message</label>
+                    <textarea id="message" rows="4" required class="w-full px-4 py-3 bg-gray-800 border border-gray-700 text-white rounded-lg focus:ring-2 focus:ring-white placeholder-gray-500 transition"></textarea>
+                </div>
+                
+                <button type="submit" class="w-full bg-white hover:bg-gray-200 text-black font-bold py-3 px-4 rounded-lg transition">
+                    Send Ticket
+                </button>
+            </form>
+        </div>
+
+        <!-- Tickets List -->
+        <div class="bg-gray-900 rounded-lg shadow-2xl p-6 border border-gray-800">
+            <h2 class="text-2xl font-bold text-white mb-6">Your Tickets</h2>
+            <div id="tickets-list" class="space-y-3">
+                <p class="text-gray-400 text-center py-8">No support tickets yet</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ticket Details Modal -->
+<div id="ticket-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-gray-900 rounded-lg shadow-2xl border border-gray-800 w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <!-- Modal Header -->
+        <div class="p-6 border-b border-gray-800 flex justify-between items-center">
+            <h3 id="modal-subject" class="text-2xl font-bold text-white"></h3>
+            <button onclick="closeTicketModal()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+        </div>
+        
+        <!-- Modal Body (scrollable) -->
+        <div id="ticket-details" class="p-6 overflow-y-auto flex-1">
+            <div class="space-y-4">
+                <div>
+                    <p class="text-sm text-gray-400">Status</p>
+                    <span id="modal-status" class="text-xs font-bold px-2 py-1 rounded-full">Status</span>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-400">Priority</p>
+                    <span id="modal-priority" class="text-xs font-bold px-2 py-1 rounded-full">Priority</span>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-400">Created</p>
+                    <p id="modal-created" class="text-white"></p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-400 mb-2">Message</p>
+                    <p id="modal-message" class="text-gray-300 bg-gray-800 p-3 rounded border border-gray-700"></p>
+                </div>
+                
+                <!-- Replies Section -->
+                <div class="mt-6 border-t border-gray-700 pt-6">
+                    <h4 class="text-lg font-bold text-white mb-4">Replies</h4>
+                    <div id="modal-replies" class="space-y-3">
+                        <p class="text-gray-400 text-center py-4">No replies yet</p>
+                    </div>
+                </div>
+                
+                <!-- Reply Form -->
+                <div class="mt-6 border-t border-gray-700 pt-6">
+                    <h4 class="text-lg font-bold text-white mb-4">Send Reply</h4>
+                    <form id="reply-form" class="space-y-3" onsubmit="submitReply(event)">
+                        <input type="hidden" id="ticket-id-input" value="">
+                        <textarea id="reply-message" rows="3" placeholder="Type your reply..." class="w-full px-4 py-3 bg-gray-800 border border-gray-700 text-white rounded-lg focus:ring-2 focus:ring-white placeholder-gray-500 transition" required></textarea>
+                        <button type="submit" class="w-full bg-white hover:bg-gray-200 text-black font-bold py-2 px-4 rounded-lg transition">
+                            Send Reply
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('ticket-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const subject = document.getElementById('subject').value;
+    const message = document.getElementById('message').value;
+    const priority = document.getElementById('priority').value;
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    try {
+        const response = await fetch('/api/support/tickets/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+            },
+            body: JSON.stringify({
+                subject: subject,
+                message: message,
+                priority: priority
+            })
+        });
+        
+        if (response.ok) {
+            document.getElementById('subject').value = '';
+            document.getElementById('message').value = '';
+            document.getElementById('priority').value = 'medium';
+            alert('Ticket created successfully!');
+            loadTickets();
+        } else {
+            const error = await response.json();
+            console.error('Error response:', error);
+            alert('Error creating ticket: ' + JSON.stringify(error));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error creating ticket: ' + error.message);
+    }
+});
+
+function loadTickets() {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    fetch('/api/support/tickets/', {
+        headers: {
+            'X-CSRFToken': csrfToken,
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        const list = document.getElementById('tickets-list');
+        // Handle both array and paginated response
+        const tickets = Array.isArray(data) ? data : (data.results || []);
+        if (tickets.length === 0) {
+            list.innerHTML = '<p class="text-gray-400 text-center py-8">No support tickets yet</p>';
+        } else {
+            list.innerHTML = tickets.map(ticket => `
+                <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:bg-gray-700 transition cursor-pointer" onclick="viewTicketDetails(${ticket.id})">
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-bold text-white">${ticket.subject}</h4>
+                        <span class="text-xs font-bold px-2 py-1 rounded-full ${getPriorityColor(ticket.priority)}">
+                            ${ticket.priority}
+                        </span>
+                    </div>
+                    <p class="text-gray-400 text-sm">${ticket.message}</p>
+                    <div class="mt-2 flex justify-between items-center text-xs text-gray-500">
+                        <span>${new Date(ticket.created_at).toLocaleDateString()}</span>
+                        <span class="capitalize">${ticket.status}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+    })
+    .catch(error => {
+        console.error('Error loading tickets:', error);
+        const list = document.getElementById('tickets-list');
+        list.innerHTML = '<p class="text-red-400 text-center py-8">Error loading tickets</p>';
+    });
+}
+
+function viewTicketDetails(ticketId) {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    fetch(`/api/support/tickets/${ticketId}/`, {
+        headers: {
+            'X-CSRFToken': csrfToken,
+        }
+    })
+    .then(res => res.json())
+    .then(ticket => {
+        // Set modal header
+        document.getElementById('modal-subject').textContent = ticket.subject;
+        document.getElementById('modal-status').textContent = ticket.status.toUpperCase();
+        document.getElementById('modal-status').className = `text-xs font-bold px-2 py-1 rounded-full ${getStatusColor(ticket.status)}`;
+        document.getElementById('modal-priority').textContent = ticket.priority.toUpperCase();
+        document.getElementById('modal-priority').className = `text-xs font-bold px-2 py-1 rounded-full ${getPriorityColor(ticket.priority)}`;
+        document.getElementById('modal-created').textContent = new Date(ticket.created_at).toLocaleString();
+        document.getElementById('modal-message').textContent = ticket.message;
+        document.getElementById('ticket-id-input').value = ticketId;
+        
+        // Set replies
+        const repliesContainer = document.getElementById('modal-replies');
+        if (ticket.replies && ticket.replies.length > 0) {
+            repliesContainer.innerHTML = ticket.replies.map(reply => `
+                <div class="bg-gray-800 border border-gray-700 rounded-lg p-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <p class="font-bold text-white">${reply.sender_name || reply.sender_email}</p>
+                        <span class="text-xs text-gray-400">${reply.is_from_admin ? 'ADMIN' : 'YOU'}</span>
+                    </div>
+                    <p class="text-gray-300 text-sm mb-2">${reply.message}</p>
+                    <p class="text-xs text-gray-500">${new Date(reply.created_at).toLocaleString()}</p>
+                </div>
+            `).join('');
+        } else {
+            repliesContainer.innerHTML = '<p class="text-gray-400 text-center py-4">No replies yet</p>';
+        }
+        
+        // Show modal
+        document.getElementById('ticket-modal').classList.remove('hidden');
+    })
+    .catch(error => {
+        console.error('Error loading ticket details:', error);
+        alert('Error loading ticket details');
+    });
+}
+
+function closeTicketModal() {
+    document.getElementById('ticket-modal').classList.add('hidden');
+}
+
+function submitReply(event) {
+    event.preventDefault();
+    
+    const ticketId = document.getElementById('ticket-id-input').value;
+    const message = document.getElementById('reply-message').value;
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    if (!message.trim()) {
+        alert('Please enter a message');
+        return;
+    }
+    
+    fetch(`/api/support/tickets/${ticketId}/add_reply/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+        },
+        body: JSON.stringify({
+            message: message
+        })
+    })
+    .then(res => {
+        if (res.ok) {
+            document.getElementById('reply-message').value = '';
+            alert('Reply sent successfully!');
+            // Reload ticket details to show new reply
+            viewTicketDetails(ticketId);
+        } else {
+            return res.json().then(error => {
+                console.error('Error response:', error);
+                alert('Error sending reply: ' + JSON.stringify(error));
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error sending reply: ' + error.message);
+    });
+}
+
+function getPriorityColor(priority) {
+    const colors = {
+        'low': 'bg-blue-900 text-blue-400',
+        'medium': 'bg-yellow-900 text-yellow-400',
+        'high': 'bg-orange-900 text-orange-400',
+        'urgent': 'bg-red-900 text-red-400'
+    };
+    return colors[priority] || 'bg-gray-700 text-gray-300';
+}
+
+function getStatusColor(status) {
+    const colors = {
+        'open': 'bg-red-900 text-red-400',
+        'in_progress': 'bg-yellow-900 text-yellow-400',
+        'resolved': 'bg-green-900 text-green-400',
+        'closed': 'bg-gray-700 text-gray-300'
+    };
+    return colors[status] || 'bg-gray-700 text-gray-300';
+}
+
+// Close modal when clicking outside
+document.getElementById('ticket-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeTicketModal();
+    }
+});
+
+// Load tickets on page load
+document.addEventListener('DOMContentLoaded', loadTickets);
+</script>
+{% endblock %}
