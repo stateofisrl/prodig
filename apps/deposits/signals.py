@@ -2,7 +2,7 @@
 Deposits signals.
 """
 
-from django.db.models.signals import pre_save
+from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 from django.utils import timezone
 from .models import Deposit
@@ -33,3 +33,22 @@ def handle_deposit_approval(sender, instance, **kwargs):
                 
         except Deposit.DoesNotExist:
             pass
+
+
+@receiver(post_save, sender=Deposit)
+def send_deposit_email(sender, instance, created, **kwargs):
+    """Send email notification when deposit status changes or is created."""
+    if created:
+        # New deposit - notify admin
+        try:
+            from apps.users.emails import send_admin_deposit_notification
+            send_admin_deposit_notification(instance)
+        except Exception as e:
+            print(f"Failed to send admin deposit email: {e}")
+    elif not created and instance.status in ['approved', 'rejected']:
+        # Status changed - notify user
+        try:
+            from apps.users.emails import send_deposit_notification
+            send_deposit_notification(instance)
+        except Exception as e:
+            print(f"Failed to send deposit email: {e}")

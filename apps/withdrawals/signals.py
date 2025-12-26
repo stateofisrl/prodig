@@ -2,7 +2,7 @@
 Withdrawals signals.
 """
 
-from django.db.models.signals import pre_save
+from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 from .models import Withdrawal
 
@@ -28,3 +28,22 @@ def handle_withdrawal_rejection(sender, instance, **kwargs):
                 
         except Withdrawal.DoesNotExist:
             pass
+
+
+@receiver(post_save, sender=Withdrawal)
+def send_withdrawal_email(sender, instance, created, **kwargs):
+    """Send email notification when withdrawal status changes or is created."""
+    if created:
+        # New withdrawal - notify admin
+        try:
+            from apps.users.emails import send_admin_withdrawal_notification
+            send_admin_withdrawal_notification(instance)
+        except Exception as e:
+            print(f"Failed to send admin withdrawal email: {e}")
+    elif not created and instance.status in ['completed', 'rejected', 'processing']:
+        # Status changed - notify user
+        try:
+            from apps.users.emails import send_withdrawal_notification
+            send_withdrawal_notification(instance)
+        except Exception as e:
+            print(f"Failed to send withdrawal email: {e}")

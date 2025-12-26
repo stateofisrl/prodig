@@ -5,7 +5,7 @@ URL configuration for Investment Platform project.
 from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import redirect
-from apps.users.views import login_page, dashboard_view, logout_view, dev_login_as
+from apps.users.views import login_page, dashboard_view, logout_view, dev_login_as, register_page
 from apps.investments.views import investments_page
 from apps.deposits.views import deposits_page
 from apps.withdrawals.views import withdrawals_page
@@ -29,7 +29,9 @@ urlpatterns = [
     path('logout/', logout_view, name='logout'),
     # Dev helper: quickly create a session for a user (DEBUG only)
     path('dev/login-as/', dev_login_as, name='dev-login-as'),
-    path('register/', TemplateView.as_view(template_name='register.html'), name='register'),
+    path('register/', register_page, name='register'),
+    path('forgot-password/', TemplateView.as_view(template_name='forgot_password.html'), name='forgot-password'),
+    path('reset-password/<str:uid>/<str:token>/', TemplateView.as_view(template_name='reset_password.html'), name='reset-password'),
     path('profile/', TemplateView.as_view(template_name='profile.html'), name='profile'),
     path('deposits/', deposits_page, name='deposits'),
     path('investments/', investments_page, name='investments'),
