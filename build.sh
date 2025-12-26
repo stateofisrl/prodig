@@ -2,6 +2,7 @@
 # Build script for Render deployment
 
 set -o errexit
+set -o pipefail
 
 echo "Installing dependencies..."
 pip install --upgrade pip

@@ -3,7 +3,7 @@ services:
     name: tesla-investment-platform
     env: python
     region: oregon
-    plan: standard
+    plan: starter
     branch: main
     buildCommand: "./build.sh"
     startCommand: "gunicorn config.wsgi:application"
@@ -53,4 +53,4 @@ databases:
   - name: tesla-investment-db
     databaseName: investment_platform
     user: investment_user
-    plan: standard
+    plan: starter
