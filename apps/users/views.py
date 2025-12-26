@@ -12,7 +12,10 @@ from django.contrib.auth import login as django_login
 from django.contrib.auth import logout as django_logout
 from django.contrib.auth.tokens import default_token_generator
 from django.shortcuts import render, redirect
-from django.http import HttpResponseNotFound
+from django.http import HttpResponseNotFound, HttpResponse
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.utils import timezone
+from datetime import datetime
 from django.conf import settings
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
@@ -245,10 +248,60 @@ def dashboard_view(request):
     user = request.user
     from apps.investments.models import UserInvestment
     from apps.deposits.models import Deposit
+    from apps.withdrawals.models import Withdrawal
+    from apps.referrals.models import CommissionTransaction
     
     # Get user data
     active_investments = UserInvestment.objects.filter(user=user, status='active')
     recent_deposits = Deposit.objects.filter(user=user).order_by('-created_at')[:3]
+    recent_referral_tx = CommissionTransaction.objects.filter(user=user).order_by('-created_at')[:5]
+    
+    # Build unified transaction history (last 50)
+    transactions = []
+    # Deposits
+    for d in Deposit.objects.filter(user=user).order_by('-created_at')[:100]:
+        transactions.append({
+            'created_at': d.created_at,
+            'type': 'Deposit',
+            'details': f"{d.cryptocurrency}",
+            'amount': d.amount,
+            'currency': d.cryptocurrency,
+            'status': d.status,
+        })
+    # Withdrawals
+    for w in Withdrawal.objects.filter(user=user).order_by('-created_at')[:100]:
+        transactions.append({
+            'created_at': w.created_at,
+            'type': 'Withdrawal',
+            'details': f"{w.cryptocurrency}",
+            'amount': w.amount,
+            'currency': w.cryptocurrency,
+            'status': w.status,
+        })
+    # Investments
+    for inv in UserInvestment.objects.filter(user=user).order_by('-created_at')[:100]:
+        transactions.append({
+            'created_at': inv.created_at,
+            'type': 'Investment',
+            'details': getattr(inv.plan, 'name', 'Investment'),
+            'amount': inv.amount,
+            'currency': 'USD',
+            'status': inv.status,
+        })
+    # Referral commission transactions
+    for tx in CommissionTransaction.objects.filter(user=user).order_by('-created_at')[:100]:
+        status = 'Paid' if tx.transaction_type == 'commission_paid' else ('Cancelled' if tx.transaction_type == 'commission_cancelled' else 'Recorded')
+        transactions.append({
+            'created_at': tx.created_at,
+            'type': 'Referral',
+            'details': 'Referral commission',
+            'amount': tx.amount,
+            'currency': 'USD',
+            'status': status,
+        })
+    # Sort and limit
+    transactions.sort(key=lambda x: x['created_at'], reverse=True)
+    transaction_history = transactions[:50]
     
     return render(request, 'dashboard.html', {
         'balance': user.balance,
@@ -256,7 +309,188 @@ def dashboard_view(request):
         'total_earnings': user.total_earnings,
         'active_investments': active_investments,
         'recent_deposits': recent_deposits,
+        'recent_referral_tx': recent_referral_tx,
+        'transaction_history': transaction_history,
     })
+
+
+def _build_transaction_list(user, type_filter=None, status_filter=None, start=None, end=None, limit=None):
+    from apps.investments.models import UserInvestment
+    from apps.deposits.models import Deposit
+    from apps.withdrawals.models import Withdrawal
+    from apps.referrals.models import CommissionTransaction
+
+    records = []
+    type_filter = (type_filter or 'all').lower()
+
+    def in_range(dt):
+        if start and dt < start:
+            return False
+        if end and dt > end:
+            return False
+        return True
+
+    if type_filter in ('all', 'deposit'):
+        qs = Deposit.objects.filter(user=user).order_by('-created_at')
+        if limit:
+            qs = qs[:limit]
+        for d in qs:
+            if not in_range(d.created_at):
+                continue
+            if status_filter and d.status.lower() != status_filter:
+                continue
+            records.append({
+                'created_at': d.created_at,
+                'type': 'Deposit',
+                'details': f"{d.cryptocurrency}",
+                'amount': d.amount,
+                'currency': d.cryptocurrency,
+                'status': d.status,
+            })
+
+    if type_filter in ('all', 'withdrawal'):
+        qs = Withdrawal.objects.filter(user=user).order_by('-created_at')
+        if limit:
+            qs = qs[:limit]
+        for w in qs:
+            if not in_range(w.created_at):
+                continue
+            if status_filter and w.status.lower() != status_filter:
+                continue
+            records.append({
+                'created_at': w.created_at,
+                'type': 'Withdrawal',
+                'details': f"{w.cryptocurrency}",
+                'amount': w.amount,
+                'currency': w.cryptocurrency,
+                'status': w.status,
+            })
+
+    if type_filter in ('all', 'investment'):
+        qs = UserInvestment.objects.filter(user=user).order_by('-created_at')
+        if limit:
+            qs = qs[:limit]
+        for inv in qs:
+            if not in_range(inv.created_at):
+                continue
+            if status_filter and inv.status.lower() != status_filter:
+                continue
+            records.append({
+                'created_at': inv.created_at,
+                'type': 'Investment',
+                'details': getattr(inv.plan, 'name', 'Investment'),
+                'amount': inv.amount,
+                'currency': 'USD',
+                'status': inv.status,
+            })
+
+    if type_filter in ('all', 'referral'):
+        qs = CommissionTransaction.objects.filter(user=user).order_by('-created_at')
+        if limit:
+            qs = qs[:limit]
+        for tx in qs:
+            if not in_range(tx.created_at):
+                continue
+            status = 'Paid' if tx.transaction_type == 'commission_paid' else (
+                'Cancelled' if tx.transaction_type == 'commission_cancelled' else 'Recorded'
+            )
+            if status_filter and status.lower() != status_filter:
+                continue
+            records.append({
+                'created_at': tx.created_at,
+                'type': 'Referral',
+                'details': 'Referral commission',
+                'amount': tx.amount,
+                'currency': 'USD',
+                'status': status,
+            })
+
+    records.sort(key=lambda x: x['created_at'], reverse=True)
+    return records
+
+
+def transactions_page(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+
+    # Parse filters
+    type_filter = (request.GET.get('type') or 'all').lower()
+    status_filter = (request.GET.get('status') or '').lower() or None
+    start_str = request.GET.get('start')
+    end_str = request.GET.get('end')
+    page = request.GET.get('page', 1)
+    page_size = min(max(int(request.GET.get('page_size', 20)), 1), 100)
+
+    start = None
+    end = None
+    try:
+        if start_str:
+            start = timezone.make_aware(datetime.strptime(start_str, '%Y-%m-%d'))
+        if end_str:
+            # include full day end
+            end = timezone.make_aware(datetime.strptime(end_str, '%Y-%m-%d')) + timezone.timedelta(days=1)
+    except Exception:
+        start = None
+        end = None
+
+    records = _build_transaction_list(request.user, type_filter, status_filter, start, end)
+
+    paginator = Paginator(records, page_size)
+    try:
+        page_obj = paginator.page(page)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+
+    return render(request, 'transactions.html', {
+        'page_obj': page_obj,
+        'paginator': paginator,
+        'type_filter': type_filter,
+        'status_filter': status_filter or '',
+        'start': start_str or '',
+        'end': end_str or '',
+        'page_size': page_size,
+    })
+
+
+def transactions_export(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+
+    type_filter = (request.GET.get('type') or 'all').lower()
+    status_filter = (request.GET.get('status') or '').lower() or None
+    start_str = request.GET.get('start')
+    end_str = request.GET.get('end')
+
+    start = None
+    end = None
+    try:
+        if start_str:
+            start = timezone.make_aware(datetime.strptime(start_str, '%Y-%m-%d'))
+        if end_str:
+            end = timezone.make_aware(datetime.strptime(end_str, '%Y-%m-%d')) + timezone.timedelta(days=1)
+    except Exception:
+        start = None
+        end = None
+
+    records = _build_transaction_list(request.user, type_filter, status_filter, start, end)
+
+    import csv
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="transactions.csv"'
+    writer = csv.writer(response)
+    writer.writerow(['Date', 'Type', 'Details', 'Amount', 'Currency', 'Status'])
+    for r in records:
+        writer.writerow([
+            timezone.localtime(r['created_at']).strftime('%Y-%m-%d %H:%M:%S'),
+            r['type'],
+            r['details'],
+            f"{r['amount']}",
+            r.get('currency', ''),
+            r['status'],
+        ])
+    return response
 
 
 @ensure_csrf_cookie
@@ -320,6 +554,18 @@ def register_page(request):
             last_name=last_name,
             password=password
         )
+        # Handle referral code if provided (from form or URL param)
+        referral_code = request.POST.get('referral_code') or request.GET.get('ref')
+        if referral_code:
+            try:
+                from apps.referrals.models import Referral
+                referrer = User.objects.get(referral_code=referral_code)
+                # Avoid self-referral
+                if referrer != user:
+                    # Create referral if not already linked
+                    Referral.objects.get_or_create(referrer=referrer, referred=user)
+            except User.DoesNotExist:
+                pass
         django_login(request, user)
         return redirect('dashboard')
     except Exception as e:

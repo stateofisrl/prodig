@@ -5,7 +5,10 @@ URL configuration for Investment Platform project.
 from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import redirect
-from apps.users.views import login_page, dashboard_view, logout_view, dev_login_as, register_page
+from apps.users.views import (
+    login_page, dashboard_view, logout_view, dev_login_as, register_page,
+    transactions_page, transactions_export,
+)
 from apps.investments.views import investments_page
 from apps.deposits.views import deposits_page
 from apps.withdrawals.views import withdrawals_page
@@ -37,11 +40,15 @@ urlpatterns = [
     path('investments/', investments_page, name='investments'),
     path('support/', TemplateView.as_view(template_name='support.html'), name='support'),
     path('withdrawals/', withdrawals_page, name='withdrawals'),
+    path('referrals/', TemplateView.as_view(template_name='referrals.html'), name='referrals'),
+    path('transactions/', transactions_page, name='transactions'),
+    path('transactions/export/', transactions_export, name='transactions-export'),
     path('api/users/', include('apps.users.urls')),
     path('api/investments/', include('apps.investments.urls')),
     path('api/deposits/', include('apps.deposits.urls')),
     path('api/withdrawals/', include('apps.withdrawals.urls')),
     path('api/support/', include('apps.support.urls')),
+    path('api/', include('apps.referrals.urls')),
 ]
 
 if settings.DEBUG:

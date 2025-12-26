@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'apps.deposits.apps.DepositsConfig',
     'apps.withdrawals.apps.WithdrawalsConfig',
     'apps.support.apps.SupportConfig',
+    'apps.referrals.apps.ReferralsConfig',
 ]
 
 MIDDLEWARE = [

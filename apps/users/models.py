@@ -4,6 +4,7 @@ User models for Investment Platform.
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+import uuid
 
 
 class CustomUser(AbstractUser):
@@ -18,6 +19,7 @@ class CustomUser(AbstractUser):
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     country = models.CharField(max_length=100, blank=True, null=True)
     profile_image = models.ImageField(upload_to='profiles/', blank=True, null=True)
+    referral_code = models.CharField(max_length=12, unique=True, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -31,6 +33,12 @@ class CustomUser(AbstractUser):
     
     def __str__(self):
         return self.email
+    
+    def save(self, *args, **kwargs):
+        # Generate referral code if not exists
+        if not self.referral_code:
+            self.referral_code = str(uuid.uuid4())[:8].upper()
+        super().save(*args, **kwargs)
 
     def get_absolute_url(self):
         """Return the admin change URL for this user so admin 'View on site' links work."""

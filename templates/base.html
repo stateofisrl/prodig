@@ -38,6 +38,7 @@
                 <a href="/investments/" class="block py-2 px-3 text-gray-300 hover:text-white hover:bg-gray-700 rounded transition">Investments</a>
                 <a href="/deposits/" class="block py-2 px-3 text-gray-300 hover:text-white hover:bg-gray-700 rounded transition">Deposits</a>
                 <a href="/withdrawals/" class="block py-2 px-3 text-gray-300 hover:text-white hover:bg-gray-700 rounded transition">Withdrawals</a>
+                <a href="/referrals/" class="block py-2 px-3 text-gray-300 hover:text-white hover:bg-gray-700 rounded transition">Referrals</a>
                 <a href="/support/" class="block py-2 px-3 text-gray-300 hover:text-white hover:bg-gray-700 rounded transition">Support</a>
                 <a href="/profile/" class="block py-2 px-3 text-gray-300 hover:text-white hover:bg-gray-700 rounded transition">Settings</a>
                 <a href="/logout/" class="block py-2 px-3 text-red-400 hover:text-red-300 hover:bg-gray-700 rounded transition">Logout</a>
@@ -62,6 +63,7 @@
                         <a href="/investments/" class="text-gray-300 hover:text-white transition">Investments</a>
                         <a href="/deposits/" class="text-gray-300 hover:text-white transition">Deposits</a>
                         <a href="/withdrawals/" class="text-gray-300 hover:text-white transition">Withdrawals</a>
+                        <a href="/referrals/" class="text-gray-300 hover:text-white transition">Referrals</a>
                         <a href="/support/" class="text-gray-300 hover:text-white transition">Support</a>
                         <div class="relative" x-data="{ open: false }">
                             <button @click="open = !open" class="flex items-center space-x-1 text-gray-300 hover:text-white transition focus:outline-none">
@@ -103,7 +105,7 @@
     <!-- Footer -->
     <footer class="bg-gray-900 border-t border-gray-800 mt-12">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
-            <p class="text-gray-500">&copy; 2024 Tesla Inc. All rights reserved.</p>
+            <p class="text-gray-500">&copy; {% now "Y" %} Tesla Inc. All rights reserved.</p>
         </div>
     </footer>
 

@@ -1,0 +1,354 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Referrals - Tesla Investment Platform{% endblock %}
+
+{% block content %}
+<div class="space-y-8 px-4 md:px-0">
+    <!-- Page Header -->
+    <div>
+        <h1 class="text-4xl md:text-5xl font-bold text-white">Referral Program</h1>
+        <p class="text-gray-400 mt-2">Earn commission by referring new investors</p>
+    </div>
+    
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Referral Code Card -->
+        <div class="bg-gradient-to-br from-white to-gray-200 rounded-lg shadow-2xl p-6 text-black">
+            <h3 class="text-lg font-semibold mb-2 text-gray-700">Your Referral Code</h3>
+            <p class="text-4xl font-bold mb-3" id="referralCode">Loading...</p>
+            <button onclick="copyReferralCode()" class="w-full bg-black hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-lg transition text-sm">
+                📋 Copy Code
+            </button>
+        </div>
+        
+        <!-- Total Referrals Card -->
+        <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg shadow-2xl p-6 border border-gray-700 text-white">
+            <h3 class="text-lg font-semibold mb-2 text-gray-300">Total Referrals</h3>
+            <p class="text-4xl font-bold" id="totalReferrals">0</p>
+            <p class="text-sm text-gray-400 mt-2">Users referred</p>
+        </div>
+        
+        <!-- Pending Commissions Card -->
+        <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg shadow-2xl p-6 border border-gray-700 text-white">
+            <h3 class="text-lg font-semibold mb-2 text-gray-300">Pending Commissions</h3>
+            <p class="text-4xl font-bold" id="pendingCommissions">$0.00</p>
+            <p class="text-sm text-gray-400 mt-2">Awaiting approval</p>
+        </div>
+        
+        <!-- Total Earned Card -->
+        <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg shadow-2xl p-6 border border-gray-700 text-white">
+            <h3 class="text-lg font-semibold mb-2 text-gray-300">Total Earned</h3>
+            <p class="text-4xl font-bold" id="totalEarned">$0.00</p>
+            <p class="text-sm text-gray-400 mt-2"><span id="commissionRate">0</span>% commission</p>
+        </div>
+    </div>
+    
+    <!-- Share Link Section -->
+    <div>
+        <h2 class="text-2xl font-bold text-white mb-4">Share Your Referral Link</h2>
+        <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg shadow-2xl p-6 border border-gray-700">
+            <p class="text-gray-400 mb-4">Earn commission when your friends make their first deposit!</p>
+            <div class="flex flex-col sm:flex-row gap-3">
+                <input 
+                    type="text" 
+                    id="referralLink" 
+                    readonly 
+                    value="Loading..."
+                    class="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-white"
+                >
+                <button 
+                    onclick="copyReferralLink()" 
+                    class="bg-white text-black font-bold px-6 py-3 rounded-lg hover:bg-gray-200 transition whitespace-nowrap"
+                >
+                    📋 Copy Link
+                </button>
+                <button 
+                    onclick="shareReferralLink()" 
+                    class="bg-gray-700 hover:bg-gray-600 text-white font-bold px-6 py-3 rounded-lg transition whitespace-nowrap border border-gray-600"
+                >
+                    📤 Share
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tabs -->
+    <div>
+        <h2 class="text-2xl font-bold text-white mb-4">Referral Details</h2>
+        <div x-data="{ activeTab: 'referrals' }">
+            <div class="flex space-x-1 border-b border-gray-700 mb-6">
+                <button 
+                    @click="activeTab = 'referrals'" 
+                    :class="activeTab === 'referrals' ? 'border-white text-white' : 'border-transparent text-gray-400 hover:text-white'"
+                    class="px-6 py-3 font-semibold border-b-2 transition"
+                >
+                    My Referrals
+                </button>
+                <button 
+                    @click="activeTab = 'commissions'" 
+                    :class="activeTab === 'commissions' ? 'border-white text-white' : 'border-transparent text-gray-400 hover:text-white'"
+                    class="px-6 py-3 font-semibold border-b-2 transition"
+                >
+                    Commission History
+                </button>
+            </div>
+            
+            <!-- Referrals Tab Content -->
+            <div x-show="activeTab === 'referrals'" class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg shadow-2xl border border-gray-700 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-800">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Username</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Email</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Joined Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="referralsTable" class="divide-y divide-gray-700">
+                            <tr>
+                                <td colspan="4" class="px-6 py-8 text-center text-gray-400">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Commissions Tab Content -->
+            <div x-show="activeTab === 'commissions'" style="display: none;" class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg shadow-2xl border border-gray-700 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-800">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Referred User</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Deposit</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Commission</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Paid Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="commissionsTable" class="divide-y divide-gray-700">
+                            <tr>
+                                <td colspan="6" class="px-6 py-8 text-center text-gray-400">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Inline referral page JavaScript with debugging
+
+console.log('Referrals JS loaded!');
+
+// Get CSRF token from cookie
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Get authentication headers
+function getAuthHeaders() {
+    const token = localStorage.getItem('token');
+    const headers = {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken')
+    };
+    
+    if (token) {
+        headers['Authorization'] = `Token ${token}`;
+    }
+    
+    return headers;
+}
+
+// Load referral statistics
+async function loadReferralStats() {
+    console.log('Loading referral stats...');
+    try {
+        const response = await fetch('/api/referrals/stats/', {
+            headers: getAuthHeaders(),
+            credentials: 'include'
+        });
+        
+        console.log('Stats response status:', response.status);
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('Stats data:', data);
+            
+            // Handle string or number values for decimals
+            const referralCode = data.referral_code || 'N/A';
+            const totalReferrals = parseInt(data.total_referrals) || 0;
+            const pendingCommissions = parseFloat(data.pending_commissions) || 0;
+            const paidCommissions = parseFloat(data.paid_commissions) || 0;
+            const commissionRate = parseFloat(data.commission_percentage) || 0;
+            
+            console.log('Parsed values:', {referralCode, totalReferrals, pendingCommissions, paidCommissions, commissionRate});
+            
+            document.getElementById('referralCode').textContent = referralCode;
+            document.getElementById('totalReferrals').textContent = totalReferrals;
+            document.getElementById('pendingCommissions').textContent = `$${pendingCommissions.toFixed(2)}`;
+            document.getElementById('totalEarned').textContent = `$${paidCommissions.toFixed(2)}`;
+            document.getElementById('commissionRate').textContent = commissionRate;
+            
+            // Set referral link
+            const referralLink = `${window.location.origin}/register/?ref=${referralCode}`;
+            document.getElementById('referralLink').value = referralLink;
+            console.log('Updated UI with stats');
+        } else {
+            console.error('Error response:', response.status, response.statusText);
+            const text = await response.text();
+            console.error('Response body:', text);
+        }
+    } catch (error) {
+        console.error('Error loading referral stats:', error);
+    }
+}
+
+// Load referrals list
+async function loadReferrals() {
+    console.log('Loading referrals list...');
+    try {
+        const response = await fetch('/api/referrals/my_referrals/', {
+            headers: getAuthHeaders(),
+            credentials: 'include'
+        });
+        
+        console.log('Referrals response status:', response.status);
+        
+        const tableBody = document.getElementById('referralsTable');
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('Referrals data:', data);
+            
+            if (!data || data.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="4" class="px-6 py-8 text-center text-gray-400">No referrals yet. Share your code!</td></tr>';
+            } else {
+                tableBody.innerHTML = data.map(ref => `
+                    <tr class="hover:bg-gray-700 transition">
+                        <td class="px-6 py-4 whitespace-nowrap text-white">${ref.referred?.username || 'N/A'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-400">${ref.referred?.email || 'N/A'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-400">${new Date(ref.created_at).toLocaleDateString()}</td>
+                        <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 rounded-full bg-green-900 text-green-200 text-sm">Active</span></td>
+                    </tr>
+                `).join('');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading referrals:', error);
+    }
+}
+
+// Load commissions
+async function loadCommissions() {
+    console.log('Loading commissions...');
+    try {
+        const response = await fetch('/api/commissions/', {
+            headers: getAuthHeaders(),
+            credentials: 'include'
+        });
+        
+        console.log('Commissions response status:', response.status);
+        
+        const tableBody = document.getElementById('commissionsTable');
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('Commissions data:', data);
+            
+            // Handle both list and paginated responses
+            const results = Array.isArray(data) ? data : (data.results || []);
+            
+            if (results.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-gray-400">No commissions earned yet</td></tr>';
+            } else {
+                tableBody.innerHTML = results.map(com => `
+                    <tr class="hover:bg-gray-700 transition">
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-400">${new Date(com.created_at).toLocaleDateString()}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-white">${com.referred_name || 'N/A'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-white">$${parseFloat(com.deposit_amount || 0).toFixed(2)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-green-400">$${parseFloat(com.amount || 0).toFixed(2)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 rounded-full ${com.status === 'paid' ? 'bg-green-900 text-green-200' : 'bg-yellow-900 text-yellow-200'} text-sm">${(com.status || 'pending').charAt(0).toUpperCase() + (com.status || 'pending').slice(1)}</span></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-400">${com.paid_at ? new Date(com.paid_at).toLocaleDateString() : '-'}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading commissions:', error);
+    }
+}
+
+// Copy referral code to clipboard
+function copyReferralCode() {
+    const code = document.getElementById('referralCode').textContent;
+    navigator.clipboard.writeText(code).then(() => {
+        alert('Referral code copied!');
+    }).catch(err => {
+        console.error('Error copying code:', err);
+    });
+}
+
+// Copy referral link to clipboard
+function copyReferralLink() {
+    const link = document.getElementById('referralLink');
+    navigator.clipboard.writeText(link.value).then(() => {
+        alert('Referral link copied!');
+    }).catch(err => {
+        console.error('Error copying link:', err);
+    });
+}
+
+// Share referral link
+function shareReferralLink() {
+    const link = document.getElementById('referralLink').value;
+    const text = 'Join me on this amazing investment platform!';
+    
+    if (navigator.share) {
+        navigator.share({
+            title: 'Join Investment Platform',
+            text: text,
+            url: link
+        }).catch(err => console.log('Error sharing:', err));
+    } else {
+        copyReferralLink();
+    }
+}
+
+// Initialize on page load
+console.log('Setting up DOMContentLoaded listener...');
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOMContentLoaded fired!');
+    loadReferralStats();
+    loadReferrals();
+    loadCommissions();
+});
+
+// Also try calling immediately in case DOM is already ready
+if (document.readyState === 'loading') {
+    console.log('Document still loading, will wait for DOMContentLoaded');
+} else {
+    console.log('Document already loaded, calling functions immediately');
+    loadReferralStats();
+    loadReferrals();
+    loadCommissions();
+}
+</script>
+{% endblock %}
