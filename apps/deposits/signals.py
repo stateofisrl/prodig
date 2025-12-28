@@ -36,6 +36,20 @@ def handle_deposit_approval(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=Deposit)
+def handle_new_approved_deposit(sender, instance, created, **kwargs):
+    """If a deposit is created already approved, credit the balance once."""
+    if not created:
+        return
+    if instance.status != 'approved' or instance.approved_at:
+        return
+    # Credit user balance once for pre-approved creations
+    instance.user.balance += instance.amount
+    instance.user.save(update_fields=['balance'])
+    # Stamp approval time to prevent future double credits
+    Deposit.objects.filter(pk=instance.pk, approved_at__isnull=True).update(approved_at=timezone.now())
+
+
+@receiver(post_save, sender=Deposit)
 def send_deposit_email(sender, instance, created, **kwargs):
     """Send email notification when deposit status changes or is created."""
     if created:
