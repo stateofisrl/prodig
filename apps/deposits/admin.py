@@ -20,7 +20,8 @@ class DepositAdmin(admin.ModelAdmin):
     list_display = ['user', 'cryptocurrency', 'amount', 'status', 'created_at']
     list_filter = ['status', 'cryptocurrency', 'created_at']
     search_fields = ['user__email', 'cryptocurrency']
-    readonly_fields = ['proof_content']
+    # Allow entering proof content when creating deposits via admin
+    readonly_fields = []
     actions = ['approve_deposit', 'reject_deposit']
     ordering = ['-created_at']
     

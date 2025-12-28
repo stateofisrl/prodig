@@ -70,7 +70,8 @@ class Deposit(models.Model):
         default='pending'
     )
     admin_notes = models.TextField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    # Use default instead of auto_now_add so admins can set it manually when needed
+    created_at = models.DateTimeField(default=timezone.now)
     approved_at = models.DateTimeField(null=True, blank=True)
     approved_by = models.ForeignKey(
         User,
