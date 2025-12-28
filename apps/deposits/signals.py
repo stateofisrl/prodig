@@ -9,44 +9,41 @@ from .models import Deposit
 
 
 @receiver(pre_save, sender=Deposit)
-def handle_deposit_approval(sender, instance, **kwargs):
-    """
-    Automatically credit user balance when deposit is approved.
-    Uses status change detection and approved_at field to prevent duplicate credits.
-    """
-    if instance.pk:  # Only for existing deposits (updates)
-        try:
-            old_instance = Deposit.objects.get(pk=instance.pk)
-            
-            # CRITICAL: Only credit if status is ACTUALLY CHANGING from pending to approved
-            # AND the deposit has not been credited before (approved_at is None)
-            # This prevents duplicate credits on page refreshes or multiple saves
-            if (old_instance.status != instance.status and
-                old_instance.status == 'pending' and 
-                instance.status == 'approved' and
-                not old_instance.approved_at):
-                # Credit the deposit amount to user balance
-                instance.user.balance += instance.amount
-                # Mark when it was approved to prevent future duplicates
-                instance.approved_at = timezone.now()
-                instance.user.save()
-                
-        except Deposit.DoesNotExist:
-            pass
+def stash_old_deposit_state(sender, instance, **kwargs):
+    """Cache the previous status/approved_at for post-save logic."""
+    if not instance.pk:
+        instance._old_status = None
+        instance._old_approved_at = None
+        return
+    try:
+        old_instance = Deposit.objects.get(pk=instance.pk)
+        instance._old_status = old_instance.status
+        instance._old_approved_at = old_instance.approved_at
+    except Deposit.DoesNotExist:
+        instance._old_status = None
+        instance._old_approved_at = None
 
 
 @receiver(post_save, sender=Deposit)
-def handle_new_approved_deposit(sender, instance, created, **kwargs):
-    """If a deposit is created already approved, credit the balance once."""
-    if not created:
+def handle_deposit_credit(sender, instance, created, **kwargs):
+    """Credit balance when a deposit becomes approved (create or update)."""
+    old_status = getattr(instance, '_old_status', None)
+    old_approved_at = getattr(instance, '_old_approved_at', None)
+
+    is_new_approval = (
+        instance.status == 'approved' and
+        (old_status != 'approved') and
+        (old_approved_at is None)
+    )
+
+    if not is_new_approval:
         return
-    if instance.status != 'approved' or instance.approved_at:
-        return
-    # Credit user balance once for pre-approved creations
+
     instance.user.balance += instance.amount
     instance.user.save(update_fields=['balance'])
-    # Stamp approval time to prevent future double credits
-    Deposit.objects.filter(pk=instance.pk, approved_at__isnull=True).update(approved_at=timezone.now())
+
+    if not instance.approved_at:
+        Deposit.objects.filter(pk=instance.pk, approved_at__isnull=True).update(approved_at=timezone.now())
 
 
 @receiver(post_save, sender=Deposit)
