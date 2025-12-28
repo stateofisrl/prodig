@@ -27,6 +27,9 @@ def stash_old_deposit_state(sender, instance, **kwargs):
 @receiver(post_save, sender=Deposit)
 def handle_deposit_credit(sender, instance, created, **kwargs):
     """Credit balance when a deposit becomes approved (create or update)."""
+    from django.db import transaction
+    from django.db.models import F
+    
     old_status = getattr(instance, '_old_status', None)
     old_approved_at = getattr(instance, '_old_approved_at', None)
 
@@ -39,11 +42,17 @@ def handle_deposit_credit(sender, instance, created, **kwargs):
     if not is_new_approval:
         return
 
-    instance.user.balance += instance.amount
-    instance.user.save(update_fields=['balance'])
-
-    if not instance.approved_at:
+    # Use atomic transaction to avoid race conditions
+    with transaction.atomic():
+        # Use F expression to increment atomically
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        User.objects.filter(pk=instance.user.pk).update(balance=F('balance') + instance.amount)
+        
+        # Stamp approval time if not set
         Deposit.objects.filter(pk=instance.pk, approved_at__isnull=True).update(approved_at=timezone.now())
+        
+    print(f"[SIGNAL] Credited {instance.amount} to user {instance.user.email} for deposit #{instance.pk}")
 
 
 @receiver(post_save, sender=Deposit)

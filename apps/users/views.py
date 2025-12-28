@@ -151,18 +151,24 @@ class UserViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get', 'put'], permission_classes=[IsAuthenticated])
     def me(self, request):
-        """Get or update current user profile."""
+        """Get or update current user profile. Refreshes from DB to ensure latest data."""
         if request.method == 'GET':
-            serializer = UserProfileSerializer(request.user)
+            # Refresh from database to ensure latest balance/earnings are returned
+            user = User.objects.get(pk=request.user.pk)
+            serializer = UserProfileSerializer(user)
             return Response(serializer.data)
         
         elif request.method == 'PUT':
-            serializer = UserUpdateSerializer(request.user, data=request.data, partial=True)
+            # Refresh before update to avoid stale data
+            user = User.objects.get(pk=request.user.pk)
+            serializer = UserUpdateSerializer(user, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
+                # Refresh again after save to return latest state
+                user.refresh_from_db()
                 return Response({
                     'message': 'Profile updated successfully',
-                    'user': UserProfileSerializer(request.user).data
+                    'user': UserProfileSerializer(user).data
                 }, status=status.HTTP_200_OK)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
