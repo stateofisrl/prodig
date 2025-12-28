@@ -129,11 +129,11 @@ async function loadReferrals() {
  */
 async function loadCommissions() {
     try {
-        const token = localStorage.getItem('token');
         const response = await fetch('/api/commissions/', {
-            heresponse = await fetch('/api/commissions/', {
             headers: getAuthHeaders(),
             credentials: 'include'
+        });
+        
         const tableBody = document.getElementById('commissionsTable');
         
         if (response.ok) {
