@@ -48,11 +48,6 @@ class DepositAdmin(admin.ModelAdmin):
             deposit.approved_by = request.user
             deposit.save()
             
-            # Update user balance
-            user = deposit.user
-            user.balance += deposit.amount
-            user.save()
-            
             approved_count += 1
         
         self.message_user(request, f'{approved_count} deposit(s) approved successfully.')

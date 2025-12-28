@@ -4,6 +4,7 @@ Deposits models.
 
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -28,7 +29,8 @@ class CryptoWallet(models.Model):
     )
     wallet_address = models.CharField(max_length=200, unique=True)
     is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    # Use default instead of auto_now_add so admin can edit creation time when needed
+    created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
