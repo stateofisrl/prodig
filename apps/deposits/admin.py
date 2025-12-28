@@ -38,14 +38,14 @@ class DepositAdmin(admin.ModelAdmin):
     )
     
     def approve_deposit(self, request, queryset):
-        """Admin action to approve deposits."""
+        """Admin action to approve deposits. Do NOT set approved_at here; signal will stamp it after crediting."""
         from django.contrib.auth import get_user_model
         User = get_user_model()
         
         approved_count = 0
         for deposit in queryset.filter(status='pending'):
             deposit.status = 'approved'
-            deposit.approved_at = timezone.now()
+            # Do NOT set approved_at here; let the signal credit balance and stamp it
             deposit.approved_by = request.user
             deposit.save()
             
